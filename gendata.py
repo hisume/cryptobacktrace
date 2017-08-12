@@ -10,7 +10,7 @@ result = []
 tick = datetime.datetime.now()
 fileName="testdata.txt"
  
-def modPrice(currentPrice):
+def modprice(currentPrice):
     rand=random.randint(0,modRange)
     if rand%2: #if its odd, then subtract stuff
         currentPrice= currentPrice+rand
@@ -20,7 +20,9 @@ def modPrice(currentPrice):
  
 for x in range(0, lines):
     tick = tick-datetime.timedelta(minutes=5)
-    result.append(tick.isoformat()+","+str(modPrice(currentPrice))+'\r\n')
+    result.append(tick.isoformat()+","+str(modprice(currentPrice))+'\r\n')
  
 with open(fileName, 'w') as fs:
     fs.writelines(result)
+
+    
