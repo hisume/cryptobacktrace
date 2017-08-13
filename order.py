@@ -1,6 +1,6 @@
 
 import uuid
-import enum
+from enum import Enum
 
 class OrderType(Enum):
     limit="limit"
@@ -13,7 +13,7 @@ class OrderDirection(Enum):
 
 class Order():
 
-    def __init__(self, direction, type, price, quantity):
+    def __init__(self, direction, type, price, quantity,timeMade):
         if isinstance(type, OrderType):
             self.type=type
         else:
@@ -22,7 +22,7 @@ class Order():
         self.quantity=quantity
         self.totalprice=price*quantity
         self.id=str(uuid.uuid4())
-        self.timeMade=datetime.datetime.now()
+        self.timeMade=timeMade
         self.timeCompleted=self.timeMade
 
 
