@@ -3,11 +3,26 @@
     "configurations": [
 
         {
-            "name": "Python",
+            "name": "Python Main",
             "type": "python",
             "request": "launch",
             "pythonPath": "${config:python.pythonPath}",
             "program": "${workspaceRoot}\\simulate.py",
+            "cwd": "${workspaceRoot}",
+            "env": {},
+            "envFile": "${workspaceRoot}/.env",
+            "debugOptions": [
+                "WaitOnAbnormalExit",
+                "WaitOnNormalExit",
+                "RedirectOutput"
+            ]
+        },
+        {
+            "name": "Python File",
+            "type": "python",
+            "request": "launch",
+            "pythonPath": "${config:python.pythonPath}",
+            "program": "${file}",
             "cwd": "${workspaceRoot}",
             "env": {},
             "envFile": "${workspaceRoot}/.env",
