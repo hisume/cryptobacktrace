@@ -6,7 +6,7 @@ import plotly.graph_objs as go
 from cryptoDB import CryptoDB
 
 class Simulate:
-    '''TODO keep track of order history, so that it records the trend of the orders'''
+    '''TODO keep track of mva plot'''
     def __init__(self, startAmount, data):
         self.cash=startAmount
         if isinstance(data,list):
@@ -25,7 +25,9 @@ class Simulate:
         self.plotSellTime=[]
         self.plotBuyPrice=[]
         self.plotSellPrice=[]
-        self.plotCash=[]
+        self.plotCash=[] #cash on hand
+        self.plotValue=[] #total value of cash + position
+        self.plotMVA=[]
         self.marketPrice=0
         
     
@@ -73,7 +75,7 @@ class Simulate:
                     self.plotBuyTime.append(self.frametime)
 
                     ###STRATEGY CREATE SELL LIMIT ORDER
-                    newPrice=order.price*1.01
+                    newPrice=order.price*1.02
                     self.limitOrders.append(Order(direction=OrderDirection.sell,type=OrderType.limit,price=newPrice,quantity=0.1,timeMade=self.frametime,oldPrice=order.price))
                     print("Created sell limit order at {} (Total:{}) on {} from previous buy order".format(newPrice, totalPrice, self.frametime.isoformat()))
                 
@@ -153,9 +155,9 @@ class Simulate:
             if o.direction == OrderDirection.buy and (o.timeMade < self.frametime-datetime.timedelta(hours=8)):
                 self.limitOrders.remove(o)
 
-        #for sell orders that are longer than a day, wadjust them to mva+percentage
+        #for sell orders that are longer than a day, adjust them to mva+percentage
         for o in self.limitOrders:
-            if o.direction == OrderDirection.sell and (o.timeMade < self.frametime-datetime.timedelta(hours=12)):
+            if o.direction == OrderDirection.sell and (o.timeMade < self.frametime-datetime.timedelta(hours=16)):
                 newPrice=mva*1.01
                 print("Repricing sell order from {} to {} on {}".format(o.price,newPrice, self.frametime.isoformat()))
                 o.price=newPrice 
@@ -164,18 +166,20 @@ class Simulate:
 
         #when to buy
         if len(self.limitOrders) < limitOrderQuantity and self.buyPause < 1:
-            if self.marketPrice*1.002 < mva and self.marketPrice*1.0175 > mva and self.marketPrice*1.005 < gmva: #buy if less than average by a %, less than greater average by a %, but when the less is no more than 1.75%
+            if self.marketPrice < mva*.998 and self.marketPrice > mva*.975: #buy if less than average by a %, less than greater average by a %, but when the less is no more than 1.75%
                 self.limitOrders.append(Order(direction=OrderDirection.buy,type=OrderType.limit,price=self.marketPrice-1,quantity=0.1,timeMade=self.frametime))
                 print("Created buy limit order at {} on {}".format(self.marketPrice-1, self.frametime.isoformat()))
                 self.buyPause=self.buyPauseLimit
 
         self.buyPause-=1
         self.plotCash.append(self.cash)
+        self.plotValue.append(self.sellall())
+        self.plotMVA.append(mva)
             
 
     def sellall(self):
         """After we finish, sell out all of our position with price from the last frame"""
-        self.cash+=self.position*float(data[-1].split(",")[1])
+        return self.cash+self.position*float(data[-1].split(",")[1])
 
     def complete(self):
         self.sellall()
@@ -186,6 +190,13 @@ class Simulate:
             mode='lines',
             name='Price'
         )
+        mvaPlot = go.Scatter(
+            x=self.plotTime,
+            y=self.plotMVA,
+            mode='lines',
+            name='MVA'
+        )
+
 
         buyPlot = go.Scatter(
             x=self.plotBuyTime,
@@ -219,32 +230,23 @@ class Simulate:
             xaxis='x2',
             yaxis='y2'
         )
-        data = [pricePlot,buyPlot,sellPlot, cashPlot]
+        valuePlot = go.Scatter(
+            x=self.plotTime,
+            y=self.plotValue,
+            mode='lines',
+            name="Total Value",
+            marker=dict(
+                size=10,
+                color='rgba(0, 0, 190, .8)',
+            ),
+            xaxis='x2',
+            yaxis='y2'
+        )        
+        data = [pricePlot, mvaPlot, buyPlot,sellPlot, cashPlot,valuePlot]
 
         layout = dict(
             title='Crypto Simulation',
             xaxis=dict(
-                rangeselector=dict(
-                    buttons=list([
-                        dict(count=1,
-                            label='1m',
-                            step='month',
-                            stepmode='backward'),
-                        dict(count=6,
-                            label='6m',
-                            step='month',
-                            stepmode='backward'),
-                        dict(count=1,
-                            label='YTD',
-                            step='year',
-                            stepmode='todate'),
-                        dict(count=1,
-                            label='1y',
-                            step='year',
-                            stepmode='backward'),
-                        dict(step='all')
-                    ])
-                ),
                 rangeslider=dict(),
                 type='date',
                 domain=[0,1]
@@ -269,7 +271,7 @@ class Simulate:
 
 
 cdb=CryptoDB(tableName="cryptoDB")
-data=cdb.getDateRangeData("BTC-USD", "2017-08-03T23:10:38.486348", '2017-08-16T23:24:27.271083')
+data=cdb.getDateRangeData("BTC-USD", "2017-07-26T23:10:38.486348", '2017-08-16T20:24:27.271083')
 
 # data=[]
 # file=open("btc.csv")
@@ -282,7 +284,7 @@ while sim.frame < (len(data)-1):
     sim.tick()
 
 sim.complete()
-print("End Money:{}".format(sim.cash))
+print("End Money:{}".format(sim.sellall()))
 print("finished")
 
 
