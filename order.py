@@ -26,6 +26,7 @@ class Order():
         self.timeMade=timeMade
         self.timeCompleted=self.timeMade
         self.oldPrice=oldPrice#used if reselling, to calculate profits
+        self.lastModified=timeMade
 
 
         

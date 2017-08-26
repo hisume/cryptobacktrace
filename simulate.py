@@ -6,7 +6,7 @@ import plotly.graph_objs as go
 from cryptoDB import CryptoDB
 
 class Simulate:
-    '''TODO keep track of mva plot'''
+    
     def __init__(self, startAmount, data):
         self.cash=startAmount
         if isinstance(data,list):
@@ -75,7 +75,7 @@ class Simulate:
                     self.plotBuyTime.append(self.frametime)
 
                     ###STRATEGY CREATE SELL LIMIT ORDER
-                    newPrice=order.price*1.02
+                    newPrice=order.price*1.025
                     self.limitOrders.append(Order(direction=OrderDirection.sell,type=OrderType.limit,price=newPrice,quantity=0.1,timeMade=self.frametime,oldPrice=order.price))
                     print("Created sell limit order at {} (Total:{}) on {} from previous buy order".format(newPrice, totalPrice, self.frametime.isoformat()))
                 
@@ -166,7 +166,7 @@ class Simulate:
 
         #when to buy
         if len(self.limitOrders) < limitOrderQuantity and self.buyPause < 1:
-            if self.marketPrice < mva*.998 and self.marketPrice > mva*.975: #buy if less than average by a %, less than greater average by a %, but when the less is no more than 1.75%
+            if self.marketPrice < mva*.998 and self.marketPrice > mva*.975 and self.marketPrice > gmva*0.96: #buy if less than average by a %, less than greater average by a %, but when the less is no more than 1.75%
                 self.limitOrders.append(Order(direction=OrderDirection.buy,type=OrderType.limit,price=self.marketPrice-1,quantity=0.1,timeMade=self.frametime))
                 print("Created buy limit order at {} on {}".format(self.marketPrice-1, self.frametime.isoformat()))
                 self.buyPause=self.buyPauseLimit
@@ -271,7 +271,7 @@ class Simulate:
 
 
 cdb=CryptoDB(tableName="cryptoDB")
-data=cdb.getDateRangeData("BTC-USD", "2017-07-26T23:10:38.486348", '2017-08-16T20:24:27.271083')
+data=cdb.getDateRangeData("BTC-USD", "2017-08-18T01:10:38.486348", '2017-08-19T12:24:27.271083')
 
 # data=[]
 # file=open("btc.csv")
