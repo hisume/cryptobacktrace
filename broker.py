@@ -1,13 +1,15 @@
 import datetime
+import json
 import numpy as np
 from cryptoDB import CryptoDB
 from simplestrat import SimpleStrat
 import gdax as gdax
 
 
+
 class Broker:
 
-    def __init__ (self, cash, currency_pair, *data):
+    def __init__ (self, cash, currency_pair, key_file,*data):
         '''TODO
             Get historic rates for more than 200 entries
 
@@ -21,7 +23,7 @@ class Broker:
         self.strategy=SimpleStrat(self)
         self.last_trade_filled_id=0
         self.completed_orders=[]
-        self.recently_filled=[]
+        self.recently_filled_orders=[]
 
         self.limit_orders=[]
 
@@ -39,18 +41,31 @@ class Broker:
             self.data=data
         else:  #import data
             cdb=CryptoDB(tableName="cryptoDB")
-            delta=datetime.timedelta(minutes=self.strategy.max_frames_required*self.strategy.tick_time + 60)
+            delta=datetime.timedelta(minutes=self.strategy.max_frames_required*self.strategy.tick_time.seconds/60 + 60)
             self.data=cdb.getDateRangeData(currency_pair,(self.start_time-delta).isoformat(),self.start_time.isoformat())
         
         self.data_size=len(self.data)
 
-        self.gclient=gdax.AuthenticatedClient(key="65d979029164f52e33bb2be0a788d8e0",b64secret="MH9BJJytVcxzWotWCgghEpKJDAjRrXm4J9n+9wzbdNiHY8J44x8S536I6uHOX+dO+/+s2+NjB9MroNDgtVPbVw==",passphrase="9f319sdf8qd",
+        key_info=None
+        with open(key_file) as data_file:    
+            key_info = json.load(data_file)
+
+        self.gclient=gdax.AuthenticatedClient(key=key_info['key'],b64secret=key_info['secret'],passphrase=key_info['passphrase'],
             api_url="https://api-public.sandbox.gdax.com")
 
         self.get_recently_filled_orders(True) #we want to set last_trade_filled_id before we get started on ticking
     
     def get_market_price(self):
         return float(self.gclient.get_product_ticker(self.currency_pair)['price'])
+
+    def get_mva(self, frames):
+        '''Gets the moving average over the last frames amount of frames'''
+        return np.mean(list(map((lambda x: float(x.split(",")[1])), self.data[(self.data_size-frames):(self.data_size-1)])))
+        # temp= []
+        # for point in self.data[(self.data_size-frames):(self.data_size-1)]:
+        #     temp.append(float(point.split(",")[1]))
+        # return np.mean(temp)        
+
 
     def create_order(self, limit_price, amount, direction):
         cash_diff=0
@@ -75,7 +90,9 @@ class Broker:
         return self.cash+self.position*self.market_price
 
     def get_active_orders(self):
-        return (self.gclient.get_orders())[0]
+        temp=(self.gclient.get_orders())[0]
+        result= list(filter(lambda x: x['product_id'] == self.currency_pair, temp))
+        return result
 
     def get_recently_filled_orders(self, update_last_filled_id=False):
         '''
@@ -86,13 +103,15 @@ class Broker:
 
         #if runonce, then set last_trade_filled_id and then set cash and position balances
         if update_last_filled_id: 
-            self.last_trade_filled_id=float(fills[0][0]['trade_id'])
-            for o in result:
-                if o['size']=='sell':
-                    self.cash+=float(o['price'])*float(o['size'])
-                    self.position-=float(o['size'])
-                if o['side']=='buy':
-                    self.position+=float(o['size'])
+            if fills[0]:
+                self.last_trade_filled_id=float(fills[0][0]['trade_id'])
+                for o in result:
+                    if o['size']=='sell':
+                        self.cash+=float(o['price'])*float(o['size'])
+                        self.position-=float(o['size'])
+                    if o['side']=='buy':
+                        self.position+=float(o['size'])
+
 
         return result
 
@@ -107,8 +126,9 @@ class Broker:
         self.market_price=self.get_market_price()
         self.frame_time=datetime.datetime.now()
         self.data.append(self.frame_time.isoformat()+","+str(self.market_price))
+        self.data.pop(0)
         self.limit_orders=self.get_active_orders()
-        self.recently_filled=self.get_recently_filled_orders(True)
+        self.recently_filled_orders=self.get_recently_filled_orders(True)
 
         
         self.strategy.tick()
@@ -120,7 +140,7 @@ class Broker:
 
 
 def main():
-    broker=Broker(cash=10000,currency_pair="BTC-USD")
+    broker=Broker(cash=10000,currency_pair="LTC-USD", key_file=".keygx.json")
     while True:
         broker.tick()
 

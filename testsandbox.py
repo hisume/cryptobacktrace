@@ -14,10 +14,10 @@ def main():
     d=gclient.get_fills(product_id='BTC-USD')
     e=gclient.get_orders()
 
-'''     a=gem.symbols()
-    c=gem.price(symbol='btcusd')
-    d=gem.new_order(amount="5",price="3528.85",side="buy",client_order_id="3424",symbol='btcusd',type='exchange limit', options=["maker-or-cancel"])
-    e=gem.book(symbol='btcusd',limit_asks=0,limit_bids=0) '''
+    # a=gem.symbols()
+    # c=gem.price(symbol='btcusd')
+    # d=gem.new_order(amount="5",price="3528.85",side="buy",client_order_id="3424",symbol='btcusd',type='exchange limit', options=["maker-or-cancel"])
+    # e=gem.book(symbol='btcusd',limit_asks=0,limit_bids=0)
 
     anum = int(input("Please enter a number"))
 
