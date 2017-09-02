@@ -24,6 +24,7 @@ class Broker:
         self.last_trade_filled_id=0
         self.completed_orders=[]
         self.recently_filled_orders=[]
+        self.cash_limit_filter=300 #USD below which this script is blind to
 
         self.limit_orders=[]
 
@@ -70,10 +71,12 @@ class Broker:
     def create_order(self, limit_price, amount, direction):
         cash_diff=0
         if direction=='buy' and limit_price < self.market_price:
-            result=self.gclient.buy(price=limit_price, size=amount, time_in_force='GTC', post_only=True, product_id=self.currency_pair)
-            cash_diff-=amount*limit_price
+            if self.cash > limit_price*amount:
+                result=self.gclient.buy(price=limit_price, size=amount, time_in_force='GTC', post_only=True, product_id=self.currency_pair)
+                cash_diff-=amount*limit_price
         elif direction == 'sell' and limit_price > self.market_price:
-            result=self.gclient.sell(price=limit_price, size=amount, time_in_force='GTC', post_only=True, product_id=self.currency_pair)
+            if self.position > amount:
+                result=self.gclient.sell(price=limit_price, size=amount, time_in_force='GTC', post_only=True, product_id=self.currency_pair)
 
         else:
             print ("ERROR creating {} order at {} (perhaps market price no longer allows it?".format(direction, limit_price))
@@ -91,7 +94,7 @@ class Broker:
 
     def get_active_orders(self):
         temp=(self.gclient.get_orders())[0]
-        result= list(filter(lambda x: x['product_id'] == self.currency_pair, temp))
+        result= list(filter(lambda x: x['product_id'] == self.currency_pair and x['size']*x['price'] < self.cash_limit_filter, temp))
         return result
 
     def get_recently_filled_orders(self, update_last_filled_id=False):
@@ -99,14 +102,14 @@ class Broker:
         Run with update_last_filled_id=true only once per tick, since it modifies update_last_filled_id
         '''
         fills=self.gclient.get_fills(product_id=self.currency_pair, limit=30)
-        result=list(filter(lambda x: x['trade_id'] > self.last_trade_filled_id, fills[0]))
+        result=list(filter(lambda x: x['trade_id'] > self.last_trade_filled_id and x['size']*x['price'] < self.cash_limit_filter, fills[0]))
 
         #if runonce, then set last_trade_filled_id and then set cash and position balances
         if update_last_filled_id: 
             if fills[0]:
                 self.last_trade_filled_id=float(fills[0][0]['trade_id'])
                 for o in result:
-                    if o['size']=='sell':
+                    if o['side']=='sell':
                         self.cash+=float(o['price'])*float(o['size'])
                         self.position-=float(o['size'])
                     if o['side']=='buy':
@@ -132,6 +135,8 @@ class Broker:
 
         
         self.strategy.tick()
+
+        
 
 
 

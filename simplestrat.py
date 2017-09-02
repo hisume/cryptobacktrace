@@ -36,6 +36,7 @@ class SimpleStrat:
         self.plot_cash=[] #cash on hand
         self.plot_value=[] #total value of cash + position
         self.plot_mva=[]
+        self.ticks_per_plot=15
 
 
     def tick(self):
@@ -68,7 +69,7 @@ class SimpleStrat:
         #Create buy orders
         if len(self.broker.limit_orders) < self.max_orders and self.ticks_between_buys_count > self.ticks_between_buys:
             if self.broker.market_price < self.mva*.998 and self.broker.market_price > self.mva*.975 and self.broker.market_price > self.gmva*0.96: #buy if less than average by a %, less than greater average by a %, but when the less is no more than 1.75%
-                new_price=self.broker.market_price - 0.01
+                new_price=self.broker.market_price - 0.02
                 print("Created buy limit order at {} on {}".format(new_price, self.broker.frame_time.isoformat()))
                 order=self.broker.create_order(limit_price=new_price, amount=self.buy_amount, direction='buy')
                 if order != 0:
@@ -118,6 +119,13 @@ class SimpleStrat:
         self.ticks_between_buys_count+=1
         self.plot_cash.append(self.broker.cash)
         self.plot_value.append(self.broker.get_account_value())
+
+
+        #plot every so often
+        if self.ticks_per_plot < 1:
+            self.plot()
+        else:
+            self.ticks_per_plot-=1
                 
                 
 
