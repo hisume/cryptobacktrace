@@ -1,4 +1,5 @@
 import datetime
+import time
 import json
 import numpy as np
 from cryptoDB import CryptoDB
@@ -9,7 +10,7 @@ import gdax as gdax
 
 class Broker:
 
-    def __init__ (self, cash, currency_pair, key_file,*data):
+    def __init__ (self, cash, currency_pair, key_file, prod_environment=False, *data):
         '''TODO
             Get historic rates for more than 200 entries
 
@@ -24,7 +25,7 @@ class Broker:
         self.last_trade_filled_id=0
         self.completed_orders=[]
         self.recently_filled_orders=[]
-        self.cash_limit_filter=300 #USD below which this script is blind to
+        self.cash_limit_filter=100 #USD below which this script is blind to
 
         self.limit_orders=[]
 
@@ -51,8 +52,12 @@ class Broker:
         with open(key_file) as data_file:    
             key_info = json.load(data_file)
 
-        self.gclient=gdax.AuthenticatedClient(key=key_info['key'],b64secret=key_info['secret'],passphrase=key_info['passphrase'],
-            api_url="https://api-public.sandbox.gdax.com")
+        if prod_environment:
+            self.gclient=gdax.AuthenticatedClient(key=key_info['key'],b64secret=key_info['secret'],passphrase=key_info['passphrase'],
+                api_url="https://api.gdax.com")          
+        else:
+            self.gclient=gdax.AuthenticatedClient(key=key_info['test_key'],b64secret=key_info['test_secret'],passphrase=key_info['test_passphrase'],
+                api_url="https://api-public.sandbox.gdax.com")
 
         self.get_recently_filled_orders(True) #we want to set last_trade_filled_id before we get started on ticking
     
@@ -94,7 +99,11 @@ class Broker:
 
     def get_active_orders(self):
         temp=(self.gclient.get_orders())[0]
-        result= list(filter(lambda x: x['product_id'] == self.currency_pair and x['size']*x['price'] < self.cash_limit_filter, temp))
+        try:
+            result= list(filter(lambda x: x['product_id'] == self.currency_pair and float(x['size'])*float(x['price']) < self.cash_limit_filter, temp))
+        except:
+            print ("ERROR")
+        
         return result
 
     def get_recently_filled_orders(self, update_last_filled_id=False):
@@ -102,7 +111,12 @@ class Broker:
         Run with update_last_filled_id=true only once per tick, since it modifies update_last_filled_id
         '''
         fills=self.gclient.get_fills(product_id=self.currency_pair, limit=30)
-        result=list(filter(lambda x: x['trade_id'] > self.last_trade_filled_id and x['size']*x['price'] < self.cash_limit_filter, fills[0]))
+        result=list(filter(lambda x: x['trade_id'] > self.last_trade_filled_id and 
+            float(x['size'])*float(x['price']) < self.cash_limit_filter, fills[0]))
+
+        if self.last_trade_filled_id==0 and fills[0]:
+            self.last_trade_filled_id=float(fills[0][0]['trade_id'])
+            return []
 
         #if runonce, then set last_trade_filled_id and then set cash and position balances
         if update_last_filled_id: 
@@ -114,7 +128,6 @@ class Broker:
                         self.position-=float(o['size'])
                     if o['side']=='buy':
                         self.position+=float(o['size'])
-
 
         return result
 
@@ -136,6 +149,8 @@ class Broker:
         
         self.strategy.tick()
 
+        time.sleep(self.strategy.tick_time.seconds)
+
         
 
 
@@ -145,7 +160,7 @@ class Broker:
 
 
 def main():
-    broker=Broker(cash=10000,currency_pair="LTC-USD", key_file=".keygx.json")
+    broker=Broker(cash=100,currency_pair="LTC-USD", prod_environment=True, key_file=".keygx.json")
     while True:
         broker.tick()
 

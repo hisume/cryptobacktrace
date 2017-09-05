@@ -7,13 +7,14 @@ class SimpleStrat:
     def __init__(self, broker):
         self.broker=broker
 
-        self.max_frames_required=360
+
         self.mva_frame_count=60
-        self.gmva_frame_count=360
+        self.gmva_frame_count=120
+        self.max_frames_required=self.gmva_frame_count #required
         self.mva=0
         self.gmva=0
 
-        self.tick_time=datetime.timedelta(minutes=1) #frame frequency by minute
+        self.tick_time=datetime.timedelta(minutes=1) #frame frequency by minute, required
         self.ticks_between_buys=10
         self.ticks_between_buys_count=0
   
@@ -36,7 +37,8 @@ class SimpleStrat:
         self.plot_cash=[] #cash on hand
         self.plot_value=[] #total value of cash + position
         self.plot_mva=[]
-        self.ticks_per_plot=15
+        self.ticks_per_plot=10
+        self.ticks_per_plot_count=0
 
 
     def tick(self):
@@ -47,7 +49,7 @@ class SimpleStrat:
         self.plot_price.append(self.broker.market_price)
         self.plot_time.append(self.broker.frame_time)
         self.plot_mva.append(self.mva)
-        print("{}   price: {}    mva: {}".format(self.broker.frame_time.isoformat(), self.broker.market_price, self.mva))
+        print("{}    price: {:.2f}    mva: {:.2f}    gmva:{:.2f}".format(self.broker.frame_time.isoformat(), self.broker.market_price, self.mva, self.gmva))
         
         #delete buy orders that last for longer than a certain time
         for o in self.broker.limit_orders:
@@ -91,10 +93,10 @@ class SimpleStrat:
             sold_total= 0.0
             sold_position= 0.0
 
-            if o.side == 'buy':
+            if o['side'] == 'buy':
                 bought_position+=float(o['size'])
                 bought_total+=(float(o['size'])* float(o['price']))
-            if o.side == 'sell':
+            if o['side'] == 'sell':
                 sold_position+=float(o['size'])
                 sold_total+=(float(o['size'])* float(o['price'])) 
 
@@ -122,10 +124,11 @@ class SimpleStrat:
 
 
         #plot every so often
-        if self.ticks_per_plot < 1:
+        if self.ticks_per_plot_count >= self.ticks_per_plot:
             self.plot()
+            self.ticks_per_plot_count=0
         else:
-            self.ticks_per_plot-=1
+            self.ticks_per_plot_count+=1
                 
                 
 
@@ -211,7 +214,7 @@ class SimpleStrat:
 
         )
         fig = dict(data=data, layout=layout)
-        py.plot(fig, filename='crypto-stuff')      
+        py.plot(fig, filename='crypto-stuff', auto_open=True)      
 
 
 
