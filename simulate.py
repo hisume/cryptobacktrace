@@ -271,7 +271,7 @@ class Simulate:
 
 
 cdb=CryptoDB(tableName="cryptoDB")
-data=cdb.getDateRangeData("BTC-USD", "2017-08-18T01:10:38.486348", '2017-08-19T12:24:27.271083')
+data=cdb.getDateRangeData("LTC-USD", "2017-08-18T01:10:38.486348", '2017-08-19T12:24:27.271083')
 
 # data=[]
 # file=open("btc.csv")

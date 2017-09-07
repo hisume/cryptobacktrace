@@ -23,7 +23,7 @@ class SimpleStrat:
         self.sell_order_expiration=datetime.timedelta(hours=16) #buy order expiration time
         self.sell_order_expiration_reprice_ratio=1.01 #mva ratio to reprice expired sell orders
 
-        self.resell_price_ratio=1.025 #resell ratio for creating sell order after buy limit order fulfilled
+        self.resell_price_ratio=1.0125 #resell ratio for creating sell order after buy limit order fulfilled
         self.buy_amount=0.01
         self.max_orders=20
 
@@ -41,13 +41,13 @@ class SimpleStrat:
         self.ticks_per_plot_count=0
 
 
-    def tick(self):
+    def tick(self): #required
         #calculate MVA
         self.mva= self.broker.get_mva(self.mva_frame_count)
         self.gmva= self.broker.get_mva(self.gmva_frame_count)
 
         self.plot_price.append(self.broker.market_price)
-        self.plot_time.append(self.broker.frame_time)
+        self.plot_time.append(self.broker.frame_time.isoformat())
         self.plot_mva.append(self.mva)
         print("{}    price: {:.2f}    mva: {:.2f}    gmva:{:.2f}".format(self.broker.frame_time.isoformat(), self.broker.market_price, self.mva, self.gmva))
         
@@ -63,10 +63,10 @@ class SimpleStrat:
                 
                 ret=self.broker.cancel_order(o['id'])
                 #make sure the order is canceled before doing another buy order
-                if ret[0] == o.id:
+                if ret[0] == o['id']:
                     new_price=self.mva*self.sell_order_expiration_reprice_ratio
                     print("Repricing sell order from {} to {} on {}".format(o['price'],new_price, self.broker.frame_time.isoformat()))
-                    self.broker.create_order(limit_price=new_price, amount=o['size'], direction='buy')
+                    self.broker.create_order(limit_price=new_price, amount=o['size'], direction='sell')
 
         #Create buy orders
         if len(self.broker.limit_orders) < self.max_orders and self.ticks_between_buys_count > self.ticks_between_buys:
@@ -75,10 +75,9 @@ class SimpleStrat:
                 print("Created buy limit order at {} on {}".format(new_price, self.broker.frame_time.isoformat()))
                 order=self.broker.create_order(limit_price=new_price, amount=self.buy_amount, direction='buy')
                 if order != 0:
-
                     self.ticks_between_buys_count=0
-                    self.plot_buy_price.append(new_price)
-                    self.plot_buy_time.append(self.broker.frame_time)
+                    # self.plot_buy_price.append(new_price)
+                    # self.plot_buy_time.append(self.broker.frame_time)
                 else:
                     print("Error Creating buy order on {}. Message: {}".format(self.broker.frame_time.isoformat(), order['message']))
 
@@ -105,7 +104,7 @@ class SimpleStrat:
                 self.plot_buy_price.append(avg_price)
                 self.plot_buy_time.append(self.broker.frame_time.isoformat())
                 #create sell order
-                new_price=avg_price*self.resell_price_ratio
+                new_price=round(avg_price*self.resell_price_ratio, 2)
                 order=self.broker.create_order(limit_price=new_price, amount=bought_position, direction='sell')
                 if order != 0:
                     print("Created reselling buy limit order at {}. (Total: {}) on {}".format(new_price, 
@@ -124,15 +123,19 @@ class SimpleStrat:
 
 
         #plot every so often
-        if self.ticks_per_plot_count >= self.ticks_per_plot:
-            self.plot()
-            self.ticks_per_plot_count=0
-        else:
-            self.ticks_per_plot_count+=1
+        if not self.broker.simulation:
+            if self.ticks_per_plot_count >= self.ticks_per_plot:
+                self.plot()
+                self.ticks_per_plot_count=0
+            else:
+                self.ticks_per_plot_count+=1
                 
-                
+    def complete(self):
+        ''' closes out and plots'''
+        print("End Total Assets:{}".format(self.broker.get_account_value()))
+        self.plot()
 
-    def plot(self):
+    def plot(self): 
         pricePlot = go.Scatter(
             x=self.plot_time,
             y=self.plot_price,
