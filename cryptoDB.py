@@ -23,23 +23,30 @@ class CryptoDB:
     def getDateRangeData(self, currencyPair, startDate, endDate):
         """Gets DynamoDB price data from date range from table"""
         result=[]
-        try:
-            response=self.client.query(
-                TableName=self.tableName,
-                ExpressionAttributeNames={"#t": "time", "#cp":"currencyPair"},
-                ExpressionAttributeValues= {
-                    ":startDate": {'S': startDate}, 
-                    ":endDate": {'S': endDate}, 
-                    ":cp" : {'S': currencyPair}
-                },
-                KeyConditionExpression="#cp = :cp and #t between :startDate and :endDate"
-            )
-            for i in response[u'Items']:
-                result.append(i["time"]["S"]+","+i["value"]["N"])
+        query={
+           "TableName":self.tableName,
+            "ExpressionAttributeNames":{"#t": "time", "#cp":"currencyPair"},
+            "ExpressionAttributeValues": {
+                ":startDate": {'S': startDate}, 
+                ":endDate": {'S': endDate}, 
+                ":cp" : {'S': currencyPair}
+            },
+            "KeyConditionExpression":"#cp = :cp and #t between :startDate and :endDate"
+        }
+        while True:
+            try:
+                response=self.client.query(**query)
+                for i in response[u'Items']:
+                    result.append(i["time"]["S"]+","+i["value"]["N"])
 
-        except Exception as inst:
-            print("Error getting data based on time range")
-            print(inst)
+                if 'LastEvaluatedKey' not in response:
+                    break
+                else:
+                    query['ExclusiveStartKey']=response['LastEvaluatedKey']
+
+            except Exception as inst:
+                print("Error getting data based on time range")
+                print(inst)
 
         return result
 
@@ -48,4 +55,4 @@ class CryptoDB:
     
 
 a=CryptoDB()
-data=a.getDateRangeData("BTC-USD", "2017-08-11T23:10:38.486348", '2017-08-16T23:24:27.271083')
+data=a.getDateRangeData("BTC-USD", "2017-08-02T23:10:38.486348", '2017-08-25T23:24:27.271083')

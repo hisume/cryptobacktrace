@@ -87,6 +87,7 @@ class Broker:
 
     def create_order(self, limit_price, amount, direction):
         cash_diff=0
+        position_diff=0
         if direction=='buy' and limit_price < self.market_price:
             if self.cash >= limit_price*amount:
                 if self.simulation:
@@ -108,6 +109,7 @@ class Broker:
                     result=order
                 else:
                     result=self.gclient.sell(price=limit_price, size=amount, time_in_force='GTC', post_only=True, product_id=self.currency_pair)
+                position_diff-=amount
             else:
                 print("Warning: not enough position to sell @market {0} at market price ({1}). Position: {2}".format(amount, limit_price, self.position))
                 return
@@ -121,10 +123,21 @@ class Broker:
         if not self.simulation:
             self.limit_orders.append(result)
         self.cash=self.cash+cash_diff
+        self.position=self.position+position_diff
         return result
     
     def get_account_value(self):
-        return self.cash+self.position*self.market_price
+        orders=self.get_active_orders()
+        cash=self.cash
+        position=self.position
+        for o in orders:
+            if o['side']=='buy':
+                cash+= float(o['size'])*float(o['price'])
+            if o['side']=='sell':
+                position+= float(o['size'])          
+
+
+        return cash+position*self.market_price
 
     def get_active_orders(self):
         if self.simulation:
@@ -151,7 +164,6 @@ class Broker:
                     if order['side'] == 'sell' and float(order['price']) < self.market_price:
                         print("SOLD at {} (Total:{}) on {}.".format(order['price'], total_price, self.frame_time.isoformat()))
                         self.cash+=total_price
-                        self.position-=order['size']
                         self.sim_completed_orders.append(order)
                         self.sim_open_orders.remove(order)
                     if order['side'] == 'buy' and float(order['price']) > self.market_price:
@@ -178,7 +190,6 @@ class Broker:
                 for o in result:
                     if o['side']=='sell':
                         self.cash+=float(o['price'])*float(o['size'])
-                        self.position-=float(o['size'])
                     if o['side']=='buy':
                         self.position+=float(o['size'])
 
@@ -191,8 +202,12 @@ class Broker:
                 if o['id'] == order_id:
                     result=o
                     self.sim_open_orders.remove(o)
+            if result['side']=='buy':
+                self.cash+=float(result['size'])*float(result['price'])
+            if result['side']=='sell':
+                self.position+=float(result['size'])
             return [result['id']]
-
+        ### need to figure out how to get canceled order to refund position/status
         return self.gclient.cancel_order(order_id)
 
 
@@ -230,7 +245,7 @@ class Broker:
 def main():
 
     cdb=CryptoDB(tableName="cryptoDB")
-    d=cdb.getDateRangeData("LTC-USD", "2017-08-16T01:10:38.486348", '2017-08-21T12:24:27.271083')
+    d=cdb.getDateRangeData("LTC-USD", "2017-09-03T01:10:38.486348", '2017-09-06T12:24:27.271083')
 
     broker=Broker(cash=100, currency_pair="LTC-USD", key_file=".keygx.json", prod_environment=True, simulation=True, data=d)
     

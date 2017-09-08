@@ -9,7 +9,7 @@ class SimpleStrat:
 
 
         self.mva_frame_count=60
-        self.gmva_frame_count=120
+        self.gmva_frame_count=360
         self.max_frames_required=self.gmva_frame_count #required
         self.mva=0
         self.gmva=0
@@ -23,7 +23,7 @@ class SimpleStrat:
         self.sell_order_expiration=datetime.timedelta(hours=16) #buy order expiration time
         self.sell_order_expiration_reprice_ratio=1.01 #mva ratio to reprice expired sell orders
 
-        self.resell_price_ratio=1.0125 #resell ratio for creating sell order after buy limit order fulfilled
+        self.resell_price_ratio=1.02 #resell ratio for creating sell order after buy limit order fulfilled
         self.buy_amount=0.01
         self.max_orders=20
 
@@ -37,6 +37,7 @@ class SimpleStrat:
         self.plot_cash=[] #cash on hand
         self.plot_value=[] #total value of cash + position
         self.plot_mva=[]
+        self.plot_gmva=[]
         self.ticks_per_plot=10
         self.ticks_per_plot_count=0
 
@@ -49,6 +50,7 @@ class SimpleStrat:
         self.plot_price.append(self.broker.market_price)
         self.plot_time.append(self.broker.frame_time.isoformat())
         self.plot_mva.append(self.mva)
+        self.plot_gmva.append(self.gmva)
         print("{}    price: {:.2f}    mva: {:.2f}    gmva:{:.2f}".format(self.broker.frame_time.isoformat(), self.broker.market_price, self.mva, self.gmva))
         
         #delete buy orders that last for longer than a certain time
@@ -64,14 +66,18 @@ class SimpleStrat:
                 ret=self.broker.cancel_order(o['id'])
                 #make sure the order is canceled before doing another buy order
                 if ret[0] == o['id']:
-                    new_price=self.mva*self.sell_order_expiration_reprice_ratio
+                    new_price=round(self.mva*self.sell_order_expiration_reprice_ratio,2)
                     print("Repricing sell order from {} to {} on {}".format(o['price'],new_price, self.broker.frame_time.isoformat()))
                     self.broker.create_order(limit_price=new_price, amount=o['size'], direction='sell')
 
         #Create buy orders
         if len(self.broker.limit_orders) < self.max_orders and self.ticks_between_buys_count > self.ticks_between_buys:
-            if self.broker.market_price < self.mva*.998 and self.broker.market_price > self.mva*.975 and self.broker.market_price > self.gmva*0.96: #buy if less than average by a %, less than greater average by a %, but when the less is no more than 1.75%
-                new_price=self.broker.market_price - 0.02
+            if (
+                self.broker.market_price < self.mva*.998 and self.broker.market_price > self.mva*.975 and 
+                self.broker.market_price > self.gmva*0.96
+                ): #buy if less than average by a %, less than greater average by a %, but when the less is no more than 1.75%
+                
+                new_price=round(self.broker.market_price - 0.02,2)
                 print("Created buy limit order at {} on {}".format(new_price, self.broker.frame_time.isoformat()))
                 order=self.broker.create_order(limit_price=new_price, amount=self.buy_amount, direction='buy')
                 if order != 0:
@@ -133,6 +139,10 @@ class SimpleStrat:
     def complete(self):
         ''' closes out and plots'''
         print("End Total Assets:{}".format(self.broker.get_account_value()))
+        orders=self.broker.get_active_orders()
+        sell_count=len(list(filter(lambda x: x['side'] =='sell', orders)))
+        buy_count=len(list(filter(lambda x: x['side'] =='buy', orders)))
+        print("Sell orders outstanding: {}. Buy orders outstanding: {}".format(sell_count, buy_count))
         self.plot()
 
     def plot(self): 
@@ -148,7 +158,12 @@ class SimpleStrat:
             mode='lines',
             name='MVA'
         )
-
+        gmvaPlot = go.Scatter(
+            x=self.plot_time, 
+            y=self.plot_gmva,
+            mode='lines',
+            name='gMVA'
+        )
 
         buyPlot = go.Scatter(
             x=self.plot_buy_time,
@@ -194,7 +209,7 @@ class SimpleStrat:
             xaxis='x2',
             yaxis='y2'
         )        
-        data = [pricePlot, mvaPlot, buyPlot,sellPlot, cashPlot,valuePlot]
+        data = [pricePlot, mvaPlot, gmvaPlot, buyPlot,sellPlot, cashPlot,valuePlot]
 
         layout = dict(
             title='Crypto Simulation',
