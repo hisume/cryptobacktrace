@@ -24,7 +24,7 @@ class SimpleStrat:
         self.sell_order_expiration_reprice_ratio=1.01 #mva ratio to reprice expired sell orders
 
         self.resell_price_ratio=1.02 #resell ratio for creating sell order after buy limit order fulfilled
-        self.buy_amount=0.01
+        self.buy_amount=1
         self.max_orders=20
 
 
@@ -73,7 +73,7 @@ class SimpleStrat:
         #Create buy orders
         if len(self.broker.limit_orders) < self.max_orders and self.ticks_between_buys_count > self.ticks_between_buys:
             if (
-                self.broker.market_price < self.mva*.998 and self.broker.market_price > self.mva*.975 and 
+                self.broker.market_price < self.mva*.99 and self.broker.market_price > self.mva*.975 and 
                 self.broker.market_price > self.gmva*0.96
                 ): #buy if less than average by a %, less than greater average by a %, but when the less is no more than 1.75%
                 

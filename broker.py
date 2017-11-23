@@ -1,11 +1,13 @@
 import datetime
 import time
+import os
 import json
+import uuid
 import numpy as np
 from cryptoDB import CryptoDB
 from simplestrat import SimpleStrat
 import gdax as gdax
-import uuid
+
 
 
 
@@ -52,7 +54,7 @@ class Broker:
             print("ERROR: Simulation flag is true but no data is loaded")
             return
         
-        if args['data'] and isinstance(args['data'],list): #data should be in the right tick frequency as the strategy
+        if ('data' in args) and isinstance(args['data'],list): #data should be in the right tick frequency as the strategy
             self.data=args['data']
         else:  #import data
             cdb=CryptoDB(tableName="cryptoDB")
@@ -240,15 +242,20 @@ class Broker:
 
 
 
-
-
 def main():
 
-    cdb=CryptoDB(tableName="cryptoDB")
-    d=cdb.getDateRangeData("LTC-USD", "2017-09-03T01:10:38.486348", '2017-09-06T12:24:27.271083')
+    if os.path.isfile("./data.txt"):
+        with open("data.txt", "r") as f:
+            d = f.read().splitlines()
+    else:
+        cdb=CryptoDB(tableName="cryptoDB")
+        d=cdb.getDateRangeData("LTC-USD", "2017-11-20T01:10:38.486348", '2017-11-23T05:24:27.271083')
+        with open("data.txt", "w") as f:
+            f.writelines("%s\n" % l for l in d)
 
-    broker=Broker(cash=100, currency_pair="LTC-USD", key_file=".keygx.json", prod_environment=True, simulation=True, data=d)
-    
+    broker=Broker(cash=1000, currency_pair="LTC-USD", key_file=".keygx.json", prod_environment=True, simulation=True, data=d)
+   
+ #  broker=Broker(cash=100, currency_pair="LTC-USD", key_file=".keygx.json", prod_environment=True, simulation=True)
     if broker.simulation:
         total_frame_iterations=broker.data_size-broker.sim_frame_index-1
     else:
