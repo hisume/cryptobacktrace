@@ -1,12 +1,14 @@
 import datetime
 import time
 import os
+import traceback
 import json
 import uuid
 import numpy as np
 from cryptoDB import CryptoDB
 from simplestrat import SimpleStrat
 import gdax as gdax
+
 
 
 
@@ -57,9 +59,10 @@ class Broker:
         if ('data' in args) and isinstance(args['data'],list): #data should be in the right tick frequency as the strategy
             self.data=args['data']
         else:  #import data
-            cdb=CryptoDB(tableName="cryptoDB")
-            delta=datetime.timedelta(minutes=self.strategy.max_frames_required*self.strategy.tick_time.seconds/60 + 60)
-            self.data=cdb.getDateRangeData(currency_pair,(self.start_time-delta).isoformat(),self.start_time.isoformat())
+            delta=datetime.timedelta(seconds=self.strategy.max_frames_required*self.strategy.tick_time.seconds + 120)
+            # cdb=CryptoDB(tableName="cryptoDB")
+            # self.data=cdb.getDateRangeData(currency_pair,(self.start_time-delta).isoformat(),self.start_time.isoformat())
+            self.data=self.get_historical_data(currency_pair=self.currency_pair,start_time=(self.start_time-delta), end_time=self.frame_time,granularity=self.strategy.tick_time.seconds)
         
         self.data_size=len(self.data)
 
@@ -76,6 +79,45 @@ class Broker:
 
         self.get_recently_filled_orders(True) #we want to set last_trade_filled_id before we get started on ticking
     
+    #gets historical data from gdax
+    def get_historical_data(self, currency_pair, start_time, end_time, granularity): #granularity in seconds, start and end times are python datetimes
+        MAX_CANDLES=200 #max datapoints to return per iteration
+        UTC_OFFSET_TIMEDELTA = datetime.datetime.utcnow() - datetime.datetime.now()
+        pub_gdax=gdax.PublicClient()
+        repetition_duration=datetime.timedelta(seconds=(granularity*MAX_CANDLES))
+        repetitions=int ((end_time-start_time).seconds /( granularity*MAX_CANDLES)) #number of total repetitions
+        result=[]
+        current_time=start_time+UTC_OFFSET_TIMEDELTA
+        end_time=end_time+UTC_OFFSET_TIMEDELTA
+        print("Getting historical data")
+        while True:
+            try:
+                if repetitions == 0: #no reps left, set end time of metho dcall to the end time
+                    ret=pub_gdax.get_product_historic_rates(product_id=currency_pair,start=current_time.isoformat(), end=end_time.isoformat(), granularity=granularity)
+                else: #still have at least one more rep left
+                    ret=pub_gdax.get_product_historic_rates(product_id=currency_pair,start=current_time.isoformat(), end=(current_time+repetition_duration).isoformat(), granularity=granularity) 
+                    current_time=current_time+repetition_duration
+                    print("Pages left: " + str(repetitions))
+                    time.sleep(5)
+                repetitions-=1
+            except Exception as ex:
+                print("Error getting gdax historical records")
+                print(ex)
+                traceback.print_exc()
+                return None
+
+            if not isinstance(ret, list):
+                print("Error getting gdax historical records. GDAX says " + ret['message'])
+                return None    
+
+            for line in ret:
+                result.append(""+datetime.datetime.fromtimestamp(line[0]).isoformat()+","+str(line[4]))
+            
+            if repetitions ==-1:
+                break
+            
+        return sorted(result)
+
     def get_market_price(self):
         if self.simulation:
             return float(self.data[self.sim_frame_index].split(",")[1])
@@ -147,8 +189,10 @@ class Broker:
         temp=(self.gclient.get_orders())[0]
         try:
             result= list(filter(lambda x: x['product_id'] == self.currency_pair and float(x['size'])*float(x['price']) < self.cash_limit_filter, temp))
-        except:
+        except Exception as ex:
             print ("ERROR")
+            print(ex)
+            traceback.print_exc()
         
         return result
 
@@ -253,13 +297,13 @@ def main():
         with open("data.txt", "w") as f:
             f.writelines("%s\n" % l for l in d)
 
-    broker=Broker(cash=1000, currency_pair="LTC-USD", key_file=".keygx.json", prod_environment=True, simulation=True, data=d)
+ #   broker=Broker(cash=1000, currency_pair="LTC-USD", key_file=".keygx.json", prod_environment=True, simulation=True, data=d)
    
- #  broker=Broker(cash=100, currency_pair="LTC-USD", key_file=".keygx.json", prod_environment=True, simulation=True)
+    broker=Broker(cash=1000, currency_pair="LTC-USD", key_file=".keygx.json", prod_environment=True, simulation=False)
     if broker.simulation:
         total_frame_iterations=broker.data_size-broker.sim_frame_index-1
     else:
-        total_frame_iterations=2000
+        total_frame_iterations=10000
 
     for number in range(1,total_frame_iterations):
         broker.tick()

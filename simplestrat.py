@@ -232,7 +232,7 @@ class SimpleStrat:
 
         )
         fig = dict(data=data, layout=layout)
-        py.plot(fig, filename='crypto-stuff', auto_open=True)      
+        py.plot(fig, filename='crypto-stuff', auto_open=False)      
 
 
 
