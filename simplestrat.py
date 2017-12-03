@@ -1,4 +1,5 @@
 import datetime
+import traceback
 import plotly.plotly as py
 import plotly.graph_objs as go
 
@@ -232,7 +233,13 @@ class SimpleStrat:
 
         )
         fig = dict(data=data, layout=layout)
-        py.plot(fig, filename='crypto-stuff', auto_open=False)      
+        try:
+            py.plot(fig, filename='crypto-stuff', auto_open=False)      
+        except Exception as ex:
+            print("Error plotting the graph")
+            print(ex)
+            traceback.print_exc()
+
 
 
 

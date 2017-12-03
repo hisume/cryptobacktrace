@@ -306,7 +306,12 @@ def main():
         total_frame_iterations=10000
 
     for number in range(1,total_frame_iterations):
-        broker.tick()
+        try:
+            broker.tick()
+        except Exception as ex:
+            print("Error getting gdax historical records")
+            print(ex)
+            traceback.print_exc()
     broker.strategy.complete()
 
 if __name__ == "__main__":
