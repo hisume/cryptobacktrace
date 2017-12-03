@@ -25,8 +25,9 @@ class SimpleStrat:
         self.sell_order_expiration_reprice_ratio=1.01 #mva ratio to reprice expired sell orders
 
         self.resell_price_ratio=1.02 #resell ratio for creating sell order after buy limit order fulfilled
-        self.buy_amount=1
         self.max_orders=20
+        self.buy_amount=1
+        
 
 
         self.plot_price= []
@@ -48,10 +49,13 @@ class SimpleStrat:
         self.mva= self.broker.get_mva(self.mva_frame_count)
         self.gmva= self.broker.get_mva(self.gmva_frame_count)
 
+        self.buy_amount=(self.broker.cash / (self.max_orders)) / self.broker.get_market_price()
+
         self.plot_price.append(self.broker.market_price)
         self.plot_time.append(self.broker.frame_time.isoformat())
         self.plot_mva.append(self.mva)
         self.plot_gmva.append(self.gmva)
+        
         print("{}    price: {:.2f}    mva: {:.2f}    gmva:{:.2f}".format(self.broker.frame_time.isoformat(), self.broker.market_price, self.mva, self.gmva))
         
         #delete buy orders that last for longer than a certain time
@@ -74,7 +78,7 @@ class SimpleStrat:
         #Create buy orders
         if len(self.broker.limit_orders) < self.max_orders and self.ticks_between_buys_count > self.ticks_between_buys:
             if (
-                self.broker.market_price < self.mva*.99 and self.broker.market_price > self.mva*.975 and 
+                self.broker.market_price < self.mva*.99 and self.broker.market_price > self.mva*.965 and 
                 self.broker.market_price > self.gmva*0.96
                 ): #buy if less than average by a %, less than greater average by a %, but when the less is no more than 1.75%
                 

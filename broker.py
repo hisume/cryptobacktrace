@@ -1,5 +1,6 @@
 import datetime
 import time
+import sys, getopt
 import os
 import traceback
 import json
@@ -27,7 +28,7 @@ class Broker:
         self.position=0 #cryptopcurrency quantity
         self.cash=cash #cash on hand
         self.currency_pair=currency_pair
-        self.strategy=SimpleStrat(self)
+        
         self.last_trade_filled_id=0
         self.completed_orders=[]
         self.recently_filled_orders=[]
@@ -48,8 +49,10 @@ class Broker:
         # If this is a simulation, instead of having the current frame be the end of the data list, we 
         # are going to use the frame_index as a pointer to the current frame in the data
         self.simulation=simulation
+        
         self.sim_open_orders=[] #list of dictionaries with, amount, size, price, order_id
         self.sim_completed_orders=[]
+        self.strategy=SimpleStrat(self)
         self.sim_frame_index=self.strategy.max_frames_required
 
         if self.simulation and not args['data']:
@@ -288,22 +291,43 @@ class Broker:
 
 def main():
 
-    if os.path.isfile("./data.txt"):
-        with open("data.txt", "r") as f:
-            d = f.read().splitlines()
-    else:
-        cdb=CryptoDB(tableName="cryptoDB")
-        d=cdb.getDateRangeData("LTC-USD", "2017-11-20T01:10:38.486348", '2017-11-23T05:24:27.271083')
-        with open("data.txt", "w") as f:
-            f.writelines("%s\n" % l for l in d)
+    # if os.path.isfile("./data.txt"):
+    #     with open("data.txt", "r") as f:
+    #         d = f.read().splitlines()
+    # else:
+    #     cdb=CryptoDB(tableName="cryptoDB")
+    #     d=cdb.getDateRangeData("LTC-USD", "2017-11-20T01:10:38.486348", '2017-11-23T05:24:27.271083')
+    #     with open("data.txt", "w") as f:
+    #         f.writelines("%s\n" % l for l in d)
 
- #   broker=Broker(cash=1000, currency_pair="LTC-USD", key_file=".keygx.json", prod_environment=True, simulation=True, data=d)
+    #broker=Broker(cash=1000, currency_pair="LTC-USD", key_file=".keygx.json", prod_environment=True, simulation=True, data=d)
+
+    #read config file
+
+    try:
+        with open('.config.json') as json_data_file:
+            configuration = json.load(json_data_file)
+    except Exception:
+        print("Error opening up .config.json file")
+        exit(-1)
+    
+    if (configuration.get("cash") and configuration.get("currencyPair") and configuration.get("iterations") and configuration.get("prodEnvironment") and configuration.get("simulation")) == None:
+        print("one or more parameters are missing in confile file")
+        exit(-2)
+    
+    if not (isinstance(configuration.get("cash"),int) and configuration.get("cash") > 100):
+        print("one or more parameters are missing in confile file")
+        exit(-2)   
    
-    broker=Broker(cash=1000, currency_pair="LTC-USD", key_file=".keygx.json", prod_environment=True, simulation=False)
+    #broker=Broker(cash=2000, currency_pair="LTC-USD", key_file=".keygx.json", prod_environment=True, simulation=False)
+    broker=Broker(cash=configuration.get("cash"), currency_pair=configuration.get("currencyPair"), key_file=".keygx.json", prod_environment=configuration.get("prodEnvironment"), simulation=configuration.get("simulation"))
     if broker.simulation:
         total_frame_iterations=broker.data_size-broker.sim_frame_index-1
     else:
-        total_frame_iterations=10000
+        if configuration.get("iterations") == 0:
+            total_frame_iterations= 9223372036854775800
+        else:
+            total_frame_iterations=configuration.get("iterations")
 
     for number in range(1,total_frame_iterations):
         try:

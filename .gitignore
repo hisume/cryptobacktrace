@@ -63,3 +63,4 @@ target/
 testdata.txt
 .key*
 *.csv
+*.json
