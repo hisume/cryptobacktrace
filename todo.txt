@@ -1,6 +1,5 @@
 
 
-config file
 send email summary every thousand rounds
 web services stop?
 

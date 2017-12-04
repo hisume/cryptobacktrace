@@ -49,7 +49,7 @@ class Broker:
         # If this is a simulation, instead of having the current frame be the end of the data list, we 
         # are going to use the frame_index as a pointer to the current frame in the data
         self.simulation=simulation
-        
+
         self.sim_open_orders=[] #list of dictionaries with, amount, size, price, order_id
         self.sim_completed_orders=[]
         self.strategy=SimpleStrat(self)
@@ -325,17 +325,22 @@ def main():
         total_frame_iterations=broker.data_size-broker.sim_frame_index-1
     else:
         if configuration.get("iterations") == 0:
-            total_frame_iterations= 9223372036854775800
+            total_frame_iterations= 10
         else:
             total_frame_iterations=configuration.get("iterations")
 
-    for number in range(1,total_frame_iterations):
+    count=0
+    while count < total_frame_iterations:
         try:
             broker.tick()
         except Exception as ex:
             print("Error getting gdax historical records")
             print(ex)
             traceback.print_exc()
+        if configuration.get("iterations") == 0:
+            count=0
+        else:
+            count+=1
     broker.strategy.complete()
 
 if __name__ == "__main__":

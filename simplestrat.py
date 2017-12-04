@@ -16,7 +16,7 @@ class SimpleStrat:
         self.gmva=0
 
         self.tick_time=datetime.timedelta(minutes=1) #frame frequency by minute, required
-        self.ticks_between_buys=10
+        self.ticks_between_buys=7
         self.ticks_between_buys_count=0
   
 
