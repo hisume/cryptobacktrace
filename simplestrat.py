@@ -17,7 +17,7 @@ class SimpleStrat:
 
         self.tick_time=datetime.timedelta(minutes=1) #frame frequency by minute, required
         self.ticks_between_buys=7
-        self.ticks_between_buys_count=0
+        self.ticks_between_buys_count=self.ticks_between_buys
   
 
         self.buy_order_expiration=datetime.timedelta(hours=8) #buy order expiration time
@@ -29,6 +29,7 @@ class SimpleStrat:
         self.buy_amount=1
         
 
+        self.buy_amount_toggle=True #sets the buy amount only once on tick
 
         self.plot_price= []
         self.plot_time=[]
@@ -49,7 +50,9 @@ class SimpleStrat:
         self.mva= self.broker.get_mva(self.mva_frame_count)
         self.gmva= self.broker.get_mva(self.gmva_frame_count)
 
-        self.buy_amount=(self.broker.cash / (self.max_orders)) / self.broker.get_market_price()
+        if self.buy_amount_toggle:
+            self.buy_amount=round((self.broker.cash / (self.max_orders)) / self.broker.get_market_price(),2)
+            self.buy_amount_toggle=False
 
         self.plot_price.append(self.broker.market_price)
         self.plot_time.append(self.broker.frame_time.isoformat())
@@ -76,7 +79,7 @@ class SimpleStrat:
                     self.broker.create_order(limit_price=new_price, amount=o['size'], direction='sell')
 
         #Create buy orders
-        if len(self.broker.limit_orders) < self.max_orders and self.ticks_between_buys_count > self.ticks_between_buys:
+        if len(self.broker.limit_orders) < self.max_orders and self.ticks_between_buys_count >= self.ticks_between_buys:
             if (
                 self.broker.market_price < self.mva*.99 and self.broker.market_price > self.mva*.965 and 
                 self.broker.market_price > self.gmva*0.96

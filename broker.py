@@ -1,6 +1,5 @@
 import datetime
 import time
-import sys, getopt
 import os
 import traceback
 import json
@@ -311,7 +310,7 @@ def main():
         print("Error opening up .config.json file")
         exit(-1)
     
-    if (configuration.get("cash") and configuration.get("currencyPair") and configuration.get("iterations") and configuration.get("prodEnvironment") and configuration.get("simulation")) == None:
+    if (configuration.get("cash") and configuration.get("currencyPair") and configuration.get("iterations") and configuration.get("prodEnvironment") and configuration.get("simulation")) is None:
         print("one or more parameters are missing in confile file")
         exit(-2)
     
