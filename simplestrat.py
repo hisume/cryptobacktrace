@@ -21,10 +21,10 @@ class SimpleStrat:
   
 
         self.buy_order_expiration=datetime.timedelta(hours=8) #buy order expiration time
-        self.sell_order_expiration=datetime.timedelta(hours=16) #buy order expiration time
+        self.sell_order_expiration=datetime.timedelta(hours=24) #buy order expiration time
         self.sell_order_expiration_reprice_ratio=1.01 #mva ratio to reprice expired sell orders
 
-        self.resell_price_ratio=1.02 #resell ratio for creating sell order after buy limit order fulfilled
+        self.resell_price_ratio=1.012 #resell ratio for creating sell order after buy limit order fulfilled
         self.max_orders=20
         self.buy_amount=1
         

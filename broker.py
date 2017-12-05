@@ -64,7 +64,7 @@ class Broker:
             delta=datetime.timedelta(seconds=self.strategy.max_frames_required*self.strategy.tick_time.seconds + 120)
             # cdb=CryptoDB(tableName="cryptoDB")
             # self.data=cdb.getDateRangeData(currency_pair,(self.start_time-delta).isoformat(),self.start_time.isoformat())
-            self.data=self.get_historical_data(currency_pair=self.currency_pair,start_time=(self.start_time-delta), end_time=self.frame_time,granularity=self.strategy.tick_time.seconds)
+            self.data=Broker.get_historical_data(currency_pair=self.currency_pair,start_time=(self.start_time-delta), end_time=self.frame_time,granularity=self.strategy.tick_time.seconds)
         
         self.data_size=len(self.data)
 
@@ -82,12 +82,13 @@ class Broker:
         self.get_recently_filled_orders(True) #we want to set last_trade_filled_id before we get started on ticking
     
     #gets historical data from gdax
-    def get_historical_data(self, currency_pair, start_time, end_time, granularity): #granularity in seconds, start and end times are python datetimes
+    @staticmethod
+    def get_historical_data(currency_pair, start_time, end_time, granularity): #granularity in seconds, start and end times are python datetimes
         MAX_CANDLES=200 #max datapoints to return per iteration
         UTC_OFFSET_TIMEDELTA = datetime.datetime.utcnow() - datetime.datetime.now()
         pub_gdax=gdax.PublicClient()
         repetition_duration=datetime.timedelta(seconds=(granularity*MAX_CANDLES))
-        repetitions=int ((end_time-start_time).seconds /( granularity*MAX_CANDLES)) #number of total repetitions
+        repetitions=int ((end_time-start_time).total_seconds() /( granularity*MAX_CANDLES)) #number of total repetitions
         result=[]
         current_time=start_time+UTC_OFFSET_TIMEDELTA
         end_time=end_time+UTC_OFFSET_TIMEDELTA
@@ -266,7 +267,7 @@ class Broker:
         if self.simulation:
             self.sim_frame_index+=1
             self.market_price=self.get_market_price()
-            self.frame_time=datetime.datetime.strptime(self.data[self.sim_frame_index].split(',')[0],'%Y-%m-%dT%H:%M:%S.%fZ')
+            self.frame_time=datetime.datetime.strptime(self.data[self.sim_frame_index].split(',')[0],'%Y-%m-%dT%H:%M:%S')
 
         else:
             self.market_price=self.get_market_price()
@@ -290,9 +291,9 @@ class Broker:
 
 def main():
 
-    # if os.path.isfile("./data.txt"):
-    #     with open("data.txt", "r") as f:
-    #         d = f.read().splitlines()
+    if os.path.isfile("./data.txt"):
+        with open("data.txt", "r") as f:
+            d = f.read().splitlines()
     # else:
     #     cdb=CryptoDB(tableName="cryptoDB")
     #     d=cdb.getDateRangeData("LTC-USD", "2017-11-20T01:10:38.486348", '2017-11-23T05:24:27.271083')
@@ -316,13 +317,27 @@ def main():
     
     if not (isinstance(configuration.get("cash"),int) and configuration.get("cash") > 100):
         print("one or more parameters are missing in confile file")
-        exit(-2)   
+        exit(-2)
    
     #broker=Broker(cash=2000, currency_pair="LTC-USD", key_file=".keygx.json", prod_environment=True, simulation=False)
-    broker=Broker(cash=configuration.get("cash"), currency_pair=configuration.get("currencyPair"), key_file=".keygx.json", prod_environment=configuration.get("prodEnvironment"), simulation=configuration.get("simulation"))
-    if broker.simulation:
+
+    if configuration.get("simulation"):
+        sim_start = datetime.datetime.strptime("11/2/2017 5:03:29 PM", '%m/%d/%Y %I:%M:%S %p')
+        sim_end = datetime.datetime.strptime("12/4/2017 2:03:29 PM", '%m/%d/%Y %I:%M:%S %p')
+
+        if os.path.isfile("./data.txt"):
+            with open("data.txt", "r") as f:
+                data = f.read().splitlines()
+        else:
+            data=Broker.get_historical_data(currency_pair=configuration.get("currencyPair"),start_time=sim_start,end_time=sim_end,granularity=60)
+            data_file = open('data.txt', 'w')
+            for item in data:
+                data_file.write("%s\n" % item)
+
+        broker=Broker(cash=configuration.get("cash"), currency_pair=configuration.get("currencyPair"), key_file=".keygx.json", prod_environment=configuration.get("prodEnvironment"), simulation=configuration.get("simulation"),data=data)
         total_frame_iterations=broker.data_size-broker.sim_frame_index-1
     else:
+        broker=Broker(cash=configuration.get("cash"), currency_pair=configuration.get("currencyPair"), key_file=".keygx.json", prod_environment=configuration.get("prodEnvironment"), simulation=configuration.get("simulation"))
         if configuration.get("iterations") == 0:
             total_frame_iterations= 10
         else:
@@ -340,6 +355,9 @@ def main():
             count=0
         else:
             count+=1
+
+        if broker.simulation and broker.sim_frame_index == (broker.data_size-3):
+            break
     broker.strategy.complete()
 
 if __name__ == "__main__":
