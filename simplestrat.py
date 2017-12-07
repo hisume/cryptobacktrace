@@ -20,11 +20,11 @@ class SimpleStrat:
         self.ticks_between_buys_count=self.ticks_between_buys
   
 
-        self.buy_order_expiration=datetime.timedelta(hours=8) #buy order expiration time
+        self.buy_order_expiration=datetime.timedelta(hours=4) #buy order expiration time
         self.sell_order_expiration=datetime.timedelta(hours=24) #buy order expiration time
         self.sell_order_expiration_reprice_ratio=1.01 #mva ratio to reprice expired sell orders
 
-        self.resell_price_ratio=1.012 #resell ratio for creating sell order after buy limit order fulfilled
+        self.resell_price_ratio=1.015 #resell ratio for creating sell order after buy limit order fulfilled
         self.max_orders=20
         self.buy_amount=1
         
@@ -59,7 +59,7 @@ class SimpleStrat:
         self.plot_mva.append(self.mva)
         self.plot_gmva.append(self.gmva)
         
-        print("{}    price: {:.2f}    mva: {:.2f}    gmva:{:.2f}".format(self.broker.frame_time.isoformat(), self.broker.market_price, self.mva, self.gmva))
+    #    print("{}    price: {:.2f}    mva: {:.2f}    gmva:{:.2f}".format(self.broker.frame_time.isoformat(), self.broker.market_price, self.mva, self.gmva))
         
         #delete buy orders that last for longer than a certain time
         for o in self.broker.limit_orders:
@@ -81,8 +81,9 @@ class SimpleStrat:
         #Create buy orders
         if len(self.broker.limit_orders) < self.max_orders and self.ticks_between_buys_count >= self.ticks_between_buys:
             if (
-                self.broker.market_price < self.mva*.99 and self.broker.market_price > self.mva*.965 and 
-                self.broker.market_price > self.gmva*0.96
+                (self.broker.market_price < self.mva*.99 and self.broker.market_price > self.mva*.965 and 
+                self.broker.market_price > self.gmva*0.93) or 
+                (self.broker.market_price < self.gmva*0.98 or self.broker.market_price > self.gmva*0.93)
                 ): #buy if less than average by a %, less than greater average by a %, but when the less is no more than 1.75%
                 
                 new_price=round(self.broker.market_price - 0.02,2)
