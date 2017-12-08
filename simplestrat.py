@@ -59,7 +59,7 @@ class SimpleStrat:
         self.plot_mva.append(self.mva)
         self.plot_gmva.append(self.gmva)
         
-    #    print("{}    price: {:.2f}    mva: {:.2f}    gmva:{:.2f}".format(self.broker.frame_time.isoformat(), self.broker.market_price, self.mva, self.gmva))
+        print("{}    price: {:.2f}    mva: {:.2f}    gmva:{:.2f}".format(self.broker.frame_time.isoformat(), self.broker.market_price, self.mva, self.gmva))
         
         #delete buy orders that last for longer than a certain time
         for o in self.broker.limit_orders:
