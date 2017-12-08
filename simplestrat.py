@@ -83,7 +83,7 @@ class SimpleStrat:
             if (
                 (self.broker.market_price < self.mva*.99 and self.broker.market_price > self.mva*.965 and 
                 self.broker.market_price > self.gmva*0.93) or 
-                (self.broker.market_price < self.gmva*0.98 or self.broker.market_price > self.gmva*0.93)
+                (self.broker.market_price < self.gmva*0.98 and self.broker.market_price > self.gmva*0.93)
                 ): #buy if less than average by a %, less than greater average by a %, but when the less is no more than 1.75%
                 
                 new_price=round(self.broker.market_price - 0.02,2)
